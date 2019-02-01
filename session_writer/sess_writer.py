@@ -42,9 +42,9 @@ class SessionWriter:
                                                (s.frame_width, s.frame_height), isColor=s.is_color)
                 writers[s.name] = source_writer
         while True and self.recording:
-            for s_name, queue in self.queues.items():
-                if not queue.empty():
-                    writers[s_name].write(queue.get())
+            for s_name, writer in writers.items():
+                if not self.queues[s_name].empty():
+                    writer.write(self.queues[s_name].get())
 
     def __queue_writer(self, source):
         source_writer = None
@@ -87,7 +87,7 @@ if __name__ == "__main__":
     sources = [DummyVideoSource("vidos", frame_width=640, frame_height=320, is_color=False),
                DummyTableSource("text")]
     sw = SessionWriter("../temp_data", sources)
-    sw.start(is_single_thread=False)
+    sw.start(is_single_thread=True)
     gen_threads = []
     for source in sources:
         t = Thread(target=generate_and_write_random_frames, args=(sw, source, source.name, 300))
