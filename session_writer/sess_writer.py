@@ -1,6 +1,6 @@
 from pathlib import Path
 from queue import Queue
-from time import time, sleep
+from time import time
 import cv2 as cv
 import pandas as pd
 from threading import Thread
@@ -9,9 +9,36 @@ from session_writer.base_source import VIDEO_SOURCE_TYPE, TABLE_SOURCE_TYPE
 
 
 class SessionWriter:
+    """
 
+    SessionWriter object receives data from different sources. Data from particular source stores in separate queue.
+    All available data records in session folder, in file per source, depending on type of source.
+
+    Attributes
+    ----------
+    path_to_write : pathlib.Path
+        Path to folder where sessions data stores
+    sources : list of session_writer.base_source.BaseSource
+        List of objects, which represents information about data sources, which will be used during session.
+    queues : dict of {str : queue.Queue}
+        Dict of queues, each of them stores data from source. Key is name of source.
+    recording : bool
+        If True, thread or threads recording data or waiting for data from data sources.
+
+    """
     def __init__(self, path_to_write, sources):
-        self.path_to_write = path_to_write
+        """
+
+        Initializes parameters for session writer.
+
+        Parameters
+        ----------
+        path_to_write : str
+            Path to folder where sessions data stores.
+        sources : list of session_writer.base_source.BaseSource
+            List of objects, which represents information about data sources, which will be used during session.
+        """
+        self.path_to_write = Path(path_to_write)
         self.sources = sources
         self.queues = {}
         for s in sources:
@@ -19,8 +46,20 @@ class SessionWriter:
         self.recording = False
 
     def start(self, is_single_thread=False):
+        """
+
+        Starts session writing. Creates folder with current time as name, where data from sources will be recorded.
+        Writing ends after calling self.stop().
+
+        Parameters
+        ----------
+        is_single_thread : bool
+            If True, all recording process will be in single thread. Otherwise, for each data source will be created
+            separate thread.
+
+        """
         self.recording = True
-        self.current_session_directoty = Path(self.path_to_write, str(time()))
+        self.current_session_directoty = self.path_to_write / str(time())
         self.current_session_directoty.mkdir(parents=True, exist_ok=True)
         if is_single_thread:
             t = Thread(target=self.__all_queues_writer)
@@ -34,6 +73,12 @@ class SessionWriter:
                 # join() ?
 
     def __all_queues_writer(self):
+        """
+
+        Target for thread object, if self.start(is_single_thread=True) called. Records all available data from all
+        non-table sources.
+
+        """
         fourcc = cv.VideoWriter_fourcc(*'XVID')
         writers = {}
         for s in self.sources:
@@ -47,6 +92,17 @@ class SessionWriter:
                     writer.write(self.queues[s_name].get())
 
     def __queue_writer(self, source):
+        """
+
+        Target for thread object, if self.start(is_single_thread=False) called. Records all available data from given
+        non-table source.
+
+        Parameters
+        ----------
+        source : session_writer.base_source.BaseSource
+            Information of source of data.
+
+        """
         source_writer = None
         if source.type_of_source == VIDEO_SOURCE_TYPE:
             fourcc = cv.VideoWriter_fourcc(*'XVID')
@@ -65,6 +121,12 @@ class SessionWriter:
             print("Data for {} source will be recorded after stop".format(source.name))
 
     def stop(self):
+        """
+
+        Stops writing process. If in current session used table data sources, records all data from this sources in
+        session folder.
+
+        """
         print("Session stop")
         self.recording = False
         for s in self.sources:
@@ -74,6 +136,16 @@ class SessionWriter:
         print("Table data recorded")
 
     def add_item_to_source_queue(self, source_name, item):
+        """
+
+        Parameters
+        ----------
+        source_name : str
+            Name of data source.
+        item : object
+            Single object, received from data source with given name.
+
+        """
         self.queues[source_name].put(item)
 
 
