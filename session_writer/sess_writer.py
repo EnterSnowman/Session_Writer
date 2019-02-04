@@ -90,6 +90,7 @@ class SessionWriter:
             for s_name, writer in writers.items():
                 if not self.queues[s_name].empty():
                     writer.write(self.queues[s_name].get())
+            sleep(0.2)
 
     def __queue_writer(self, source):
         """
@@ -115,6 +116,7 @@ class SessionWriter:
                 if not self.queues[source.name].empty():
                     frame = self.queues[source.name].get()
                     source_writer.write(frame)
+                sleep(0.2)
             source_writer.release()
             print("Writer for", source.name, "released!")
         else:
